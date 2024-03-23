@@ -68,7 +68,7 @@ async def pub_(bot, message):
        return await stop(client, user)
     temp.forwardings += 1
     await db.add_frwd(user)
-    await send(client, user, "🩷 Forwarding Started")
+#    await send(client, user, "🩷 Forwarding Started")
     sts.add(time=True)
     sleep = 1 if _bot['is_bot'] else 10
     await msg_edit(m, "Processing...") 
@@ -122,7 +122,7 @@ async def pub_(bot, message):
             temp.IS_FRWD_CHAT.remove(sts.TO)
             return await stop(client, user)
         temp.IS_FRWD_CHAT.remove(sts.TO)
-        await send(client, user, "🎉 Forwarding Completed")
+ #       await send(client, user, "🎉 Forwarding Completed")
         await edit(m, 'Completed', "completed", sts) 
         await stop(client, user)
             
@@ -221,7 +221,7 @@ async def is_cancelled(client, user, msg, sts):
    if temp.CANCEL.get(user)==True:
       temp.IS_FRWD_CHAT.remove(sts.TO)
       await edit(msg, "Cancelled", "completed", sts)
-      await send(client, user, "❌ Forwarding Process Cancelled")
+  #    await send(client, user, "❌ Forwarding Process Cancelled")
       await stop(client, user)
       return True 
    return False 
