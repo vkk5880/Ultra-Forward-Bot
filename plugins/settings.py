@@ -89,65 +89,124 @@ async def settings_query(bot, query):
        "<b><u>My Channels</u></b>\n\nYou Can Manage Your Target Chats In Here",
        reply_markup=InlineKeyboardMarkup(buttons))
    
-  elif type=="addchannel":  
-     await query.message.delete()
-     try:
-         text = await bot.send_message(user_id, "<b><u>Set Target Chat</u></b>\n\nForward A Message From Your Target Chat\n/cancel - To Cancel This Process")
-         chat_ids = await bot.listen(chat_id=user_id, timeout=300)
-         if chat_ids.text=="/cancel":
-            await chat_ids.delete()
-            return await text.edit_text(
-                  "Process Canceled",
-                  reply_markup=InlineKeyboardMarkup(buttons))
-         # If it's a forwarded message (for private channels)
-         elif chat_ids.forward_date:
-            if not chat_ids.forward_from_chat:
-                await chat_ids.delete()
-                return await text.edit_text("This is not a forwarded channel message")
+  elif type == "addchannel":  
+        await query.message.delete()
+        try:
+            # Ask user to choose between channel or group
+            choice_buttons = [
+                [InlineKeyboardButton('📢 Channel', callback_data='add_channel_type#channel')],
+                [InlineKeyboardButton('👥 Group', callback_data='add_channel_type#group')],
+                [InlineKeyboardButton('❌ Cancel', callback_data='settings#channels')]
+            ]
+            await query.message.reply_text(
+                "<b>What type of chat do you want to add?</b>",
+                reply_markup=InlineKeyboardMarkup(choice_buttons)
+            )
+        except Exception as e:
+            await query.message.reply_text(f"Error: {str(e)}")
+
+  elif type == "add_channel_type":
+        chat_type = query.data.split("#")[1]
+        await query.message.delete()
+        
+        try:
+            text = await bot.send_message(
+                user_id,
+                f"<b><u>Set Target {'Channel' if chat_type == 'channel' else 'Group'}</u></b>\n\n"
+                "You can:\n"
+                "1. Forward a message from the chat\n"
+                "2. Send the chat username (e.g., @username)\n"
+                "3. Send the chat ID\n\n"
+                "/cancel - To Cancel This Process"
+            )
             
-            chat_id = chat_ids.forward_from_chat.id
-            title = chat_ids.forward_from_chat.title
-            username = chat_ids.forward_from_chat.username
-            username = "@" + username if username else "private"
+            chat_msg = await bot.listen(chat_id=user_id, timeout=300)
             
-         # If user sent username or ID directly
-         else:
-            input_text = chat_ids.text.strip()
+            if chat_msg.text == "/cancel":
+                await chat_msg.delete()
+                return await text.edit_text(
+                    "Process Canceled",
+                    reply_markup=InlineKeyboardMarkup(buttons))
             
-            # If it's a username
-            if input_text.startswith('@'):
-                try:
-                    chat = await bot.get_chat(input_text)
-                    chat_id = chat.id
-                    title = chat.title
-                    username = input_text
-                except Exception as e:
-                    await chat_ids.delete()
-                    return await text.edit_text(f"Failed to get channel: {e}")
+            chat_id = None
+            title = None
+            username = "private"
             
-            # If it's a channel ID
-            elif input_text.lstrip('-').isdigit():
-                try:
-                    chat_id = int(input_text)
-                    chat = await bot.get_chat(chat_id)
-                    title = chat.title
-                    username = chat.username
-                    username = "@" + username if username else "private"
-                except Exception as e:
-                    await chat_ids.delete()
-                    return await text.edit_text(f"Failed to get channel: {e}")
+            # Handle forwarded message
+            if chat_msg.forward_from_chat:
+                chat_id = chat_msg.forward_from_chat.id
+                title = chat_msg.forward_from_chat.title
+                if chat_msg.forward_from_chat.username:
+                    username = "@" + chat_msg.forward_from_chat.username
+                elif chat_type == "channel":
+                    username = "private_channel"
+                else:
+                    username = "private_group"
+            
+            # Handle text input (username or ID)
+            elif chat_msg.text:
+                input_text = chat_msg.text.strip()
+                
+                # Check if it's a username
+                if input_text.startswith('@'):
+                    try:
+                        chat = await bot.get_chat(input_text)
+                        chat_id = chat.id
+                        title = chat.title
+                        username = input_text
+                    except Exception:
+                        await chat_msg.delete()
+                        return await text.edit_text("Invalid username or bot doesn't have access")
+                
+                # Check if it's a numeric ID
+                elif input_text.lstrip('-').isdigit():
+                    try:
+                        chat_id = int(input_text)
+                        chat = await bot.get_chat(chat_id)
+                        title = chat.title
+                        username = chat.username or ("private_group" if chat.type in [enums.ChatType.GROUP, enums.ChatType.SUPERGROUP] else "private_channel")
+                        if username.startswith('@'):
+                            username = "@" + username
+                    except Exception:
+                        await chat_msg.delete()
+                        return await text.edit_text("Invalid ID or bot doesn't have access")
+                
+                else:
+                    await chat_msg.delete()
+                    return await text.edit_text("Invalid input. Please send username starting with @ or numeric ID")
             
             else:
-                await chat_ids.delete()
-                return await text.edit_text("Invalid input. Please send channel ID or username")
-         
-         chat = await db.add_channel(user_id, chat_id, title, username)
-         await chat_ids.delete()
-         await text.edit_text(
-            "Successfully Updated" if chat else "This Channel Already Added",
-            reply_markup=InlineKeyboardMarkup(buttons))
-     except asyncio.exceptions.TimeoutError:
-         await text.edit_text('Process Has Been Automatically Cancelled', reply_markup=InlineKeyboardMarkup(buttons))
+                await chat_msg.delete()
+                return await text.edit_text("Invalid input. Please forward a message or send username/ID")
+            
+            # For groups, check if topics are enabled
+            is_forum = False
+            if chat_type == "group":
+                try:
+                    chat = await bot.get_chat(chat_id)
+                    is_forum = chat.is_forum
+                except Exception:
+                    pass  # If we can't check, assume it's not a forum
+            
+            # Add to database
+            chat = await db.add_channel(
+                user_id=user_id,
+                chat_id=chat_id,
+                title=title,
+                username=username,
+                chat_type=chat_type,
+                is_forum=is_forum
+            )
+            
+            await chat_msg.delete()
+            await text.edit_text(
+                f"Successfully added {'channel' if chat_type == 'channel' else 'group'}!" if chat else "This chat already exists in your list",
+                reply_markup=InlineKeyboardMarkup(buttons))
+            
+  except asyncio.exceptions.TimeoutError:
+    await text.edit_text('Process timed out', reply_markup=InlineKeyboardMarkup(buttons))
+  except Exception as e:
+    await text.edit_text(f'Error: {str(e)}', reply_markup=InlineKeyboardMarkup(buttons))
   
   elif type=="editbot": 
      bot = await db.get_bot(user_id)
