@@ -94,8 +94,8 @@ async def settings_query(bot, query):
         try:
             # Ask user to choose between channel or group
             choice_buttons = [
-                [InlineKeyboardButton('📢 Channel', callback_data='add_channel_type#channel')],
-                [InlineKeyboardButton('👥 Group', callback_data='add_channel_type#group')],
+                [InlineKeyboardButton('📢 Channel', callback_data='settings#add_channel_type#channel')],
+                [InlineKeyboardButton('👥 Group', callback_data='settings#add_channel_type#group')],
                 [InlineKeyboardButton('❌ Cancel', callback_data='settings#channels')]
             ]
             await query.message.reply_text(
