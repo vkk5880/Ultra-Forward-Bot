@@ -203,10 +203,10 @@ async def settings_query(bot, query):
                 f"Successfully added {'channel' if chat_type == 'channel' else 'group'}!" if chat else "This chat already exists in your list",
                 reply_markup=InlineKeyboardMarkup(buttons))
             
-  except asyncio.exceptions.TimeoutError:
-    await text.edit_text('Process timed out', reply_markup=InlineKeyboardMarkup(buttons))
-  except Exception as e:
-    await text.edit_text(f'Error: {str(e)}', reply_markup=InlineKeyboardMarkup(buttons))
+        except asyncio.exceptions.TimeoutError:
+            await text.edit_text('Process timed out', reply_markup=InlineKeyboardMarkup(buttons))
+        except Exception as e:
+            await text.edit_text(f'Error: {str(e)}', reply_markup=InlineKeyboardMarkup(buttons))
   
   elif type=="editbot": 
      bot = await db.get_bot(user_id)
