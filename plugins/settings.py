@@ -105,7 +105,7 @@ async def settings_query(bot, query):
         except Exception as e:
             await query.message.reply_text(f"Error: {str(e)}")
 
-  elif type == "add_channel_type":
+  elif query.data in ("add_channel_type#channel", "add_channel_type#group"):
         chat_type = query.data.split("#")[1]
         await query.message.delete()
         
