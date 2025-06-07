@@ -1,13 +1,23 @@
+# Use an official Python runtime
 FROM python:3.8-slim-buster
 
-RUN apt update && apt upgrade -y
-RUN apt install git -y
+# Install system dependencies
+RUN apt update && apt install -y git && apt clean
+
+# Set working directory
 WORKDIR /Ultra-Forward-Bot
-COPY requirements.txt /requirements.txt
 
-RUN cd /
-RUN pip3 install -U pip && pip3 install -U -r requirements.txt
-RUN JishuDeveloper /Ultra-Forward-Bot
+# Copy requirements
+COPY requirements.txt .
 
-COPY start.sh /start.sh
-CMD ["/bin/bash", "/start.sh"]
+# Install Python dependencies
+RUN pip install --upgrade pip && pip install -r requirements.txt
+
+# Copy the full bot code
+COPY . .
+
+# Ensure start.sh is executable
+RUN chmod +x /Ultra-Forward-Bot/start.sh
+
+# Run the startup script
+CMD ["/bin/bash", "/Ultra-Forward-Bot/start.sh"]
