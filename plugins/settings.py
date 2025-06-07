@@ -99,14 +99,48 @@ async def settings_query(bot, query):
             return await text.edit_text(
                   "Process Canceled",
                   reply_markup=InlineKeyboardMarkup(buttons))
-         elif not chat_ids.forward_date:
-            await chat_ids.delete()
-            return await text.edit_text("This Is Not A Forward Message")
-         else:
+         # If it's a forwarded message (for private channels)
+         elif chat_ids.forward_date:
+            if not chat_ids.forward_from_chat:
+                await chat_ids.delete()
+                return await text.edit_text("This is not a forwarded channel message")
+            
             chat_id = chat_ids.forward_from_chat.id
             title = chat_ids.forward_from_chat.title
             username = chat_ids.forward_from_chat.username
             username = "@" + username if username else "private"
+            
+         # If user sent username or ID directly
+         else:
+            input_text = chat_ids.text.strip()
+            
+            # If it's a username
+            if input_text.startswith('@'):
+                try:
+                    chat = await bot.get_chat(input_text)
+                    chat_id = chat.id
+                    title = chat.title
+                    username = input_text
+                except Exception as e:
+                    await chat_ids.delete()
+                    return await text.edit_text(f"Failed to get channel: {e}")
+            
+            # If it's a channel ID
+            elif input_text.lstrip('-').isdigit():
+                try:
+                    chat_id = int(input_text)
+                    chat = await bot.get_chat(chat_id)
+                    title = chat.title
+                    username = chat.username
+                    username = "@" + username if username else "private"
+                except Exception as e:
+                    await chat_ids.delete()
+                    return await text.edit_text(f"Failed to get channel: {e}")
+            
+            else:
+                await chat_ids.delete()
+                return await text.edit_text("Invalid input. Please send channel ID or username")
+         
          chat = await db.add_channel(user_id, chat_id, title, username)
          await chat_ids.delete()
          await text.edit_text(
