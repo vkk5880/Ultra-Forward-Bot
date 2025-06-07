@@ -194,8 +194,6 @@ async def settings_query(bot, query):
                 chat_id=chat_id,
                 title=title,
                 username=username,
-                chat_type=chat_type,
-                is_forum=is_forum
             )
             
             await chat_msg.delete()
